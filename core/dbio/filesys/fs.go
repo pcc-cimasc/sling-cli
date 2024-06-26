@@ -252,22 +252,20 @@ func NormalizeURI(fs FileSysClient, uri string) string {
 	case dbio.TypeFileSftp:
 		path := strings.TrimPrefix(uri, fs.FsType().String()+"://")
 		u, err := net.NewURL(uri)
-		if err == nil {
+		if strings.Contains(uri, "://") && err == nil {
 			path = strings.TrimPrefix(path, u.U.User.Username())
 			path = strings.TrimPrefix(path, ":")
 			password, _ := u.U.User.Password()
 			path = strings.TrimPrefix(path, password)
 			path = strings.TrimPrefix(path, "@")
 			path = strings.TrimPrefix(path, u.U.Host)
-			if strings.HasPrefix(path, "//") {
-				path = strings.TrimPrefix(path, "/")
-			}
+			path = strings.TrimPrefix(path, "/")
 		}
 		return fs.Prefix("/") + path
 	case dbio.TypeFileFtp:
 		path := strings.TrimPrefix(uri, fs.FsType().String()+"://")
 		u, err := net.NewURL(uri)
-		if err == nil {
+		if strings.Contains(uri, "://") && err == nil {
 			path = strings.TrimPrefix(path, u.U.User.Username())
 			path = strings.TrimPrefix(path, ":")
 			password, _ := u.U.User.Password()
@@ -292,8 +290,13 @@ func makeGlob(uri string) (*glob.Glob, error) {
 	if !strings.Contains(path, "*") {
 		return nil, nil
 	}
-	if connType == dbio.TypeFileLocal {
+
+	switch connType {
+	case dbio.TypeFileLocal:
 		path = strings.TrimPrefix(path, "./")
+	case dbio.TypeFileAzure:
+		pathContainer := strings.Split(path, "/")[0]
+		path = strings.TrimPrefix(path, pathContainer+"/") // remove container
 	}
 
 	gc, err := glob.Compile(path)
